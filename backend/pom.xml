@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.aihub</groupId>
+    <artifactId>aihub</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>aihub</name>
+    <description>AIHub - lightweight repository for AI resources (Skill / Hook / Prompt / MCP / Rules / Template)</description>
+
+    <modules>
+        <module>aihub-common</module>
+        <module>aihub-api</module>
+        <module>aihub-gateway</module>
+        <module>aihub-user</module>
+        <module>aihub-asset</module>
+        <module>aihub-search</module>
+        <module>aihub-file</module>
+        <module>aihub-ai</module>
+        <module>aihub-community</module>
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <!-- 版本线：只允许 Boot 3.5.x / Cloud 2025.0.x / SCA 2025.0.x -->
+        <spring-cloud.version>2025.0.3</spring-cloud.version>
+        <spring-cloud-alibaba.version>2025.0.0.0</spring-cloud-alibaba.version>
+        <!--
+          Spring AI 版本线：1.1.x 对齐 Boot 3.5.x，禁止 2.x。
+          实测 Maven Central 存在 1.1.0~1.1.8，此处取 1.1.8。
+        -->
+        <spring-ai.version>1.1.8</spring-ai.version>
+        <!--
+          ES 客户端版本必须与服务端一致：Boot 3.5.16 只管理到 ES 8.18 的客户端，
+          而本机服务端是 9.5.2；8.x 客户端对 9.x 服务端不受支持（compat 头不匹配）。
+          因此显式使用官方 9.5.2 的 elasticsearch-java，不用 Spring Data Elasticsearch。
+        -->
+        <elasticsearch-java.version>9.5.2</elasticsearch-java.version>
+        <!-- RocketMQ 客户端：starter 2.3.6 底层 rocketmq-client 5.3.2（remoting），与 5.3.x broker 同线 -->
+        <rocketmq-spring.version>2.3.6</rocketmq-spring.version>
+        <mybatis-plus.version>3.5.17</mybatis-plus.version>
+        <hutool.version>5.8.47</hutool.version>
+        <springdoc.version>2.9.1</springdoc.version>
+        <apollo.version>2.5.0</apollo.version>
+        <minio.version>8.5.17</minio.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!--
+              Spring AI BOM。只有 aihub-ai 会用到其中的构件，
+              但版本统一放在父工程管理，避免各模块各写一套版本号。
+            -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!--
+              自 MyBatis-Plus 3.5.9 起分页插件被拆到独立模块，且聚合包中声明为 optional（不传递），
+              因此使用分页的服务必须显式声明，否则 PaginationInnerInterceptor 不在 classpath。
+            -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser-4.9</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ctrip.framework.apollo</groupId>
+                <artifactId>apollo-client</artifactId>
+                <version>${apollo.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
+            </dependency>
+
+            <!-- ES 官方 Java 客户端（9.x），版本与服务端对齐 -->
+            <dependency>
+                <groupId>co.elastic.clients</groupId>
+                <artifactId>elasticsearch-java</artifactId>
+                <version>${elasticsearch-java.version}</version>
+            </dependency>
+            <!-- RocketMQ Spring 集成（生产者 RocketMQTemplate / 消费者 @RocketMQMessageListener） -->
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-spring-boot-starter</artifactId>
+                <version>${rocketmq-spring.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.aihub</groupId>
+                <artifactId>aihub-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.aihub</groupId>
+                <artifactId>aihub-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

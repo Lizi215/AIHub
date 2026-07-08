@@ -1,0 +1,4 @@
+com.aihub.common.config.CommonAutoConfiguration
+com.aihub.common.config.CommonWebMvcAutoConfiguration
+com.aihub.common.config.CommonWebFluxAutoConfiguration
+com.aihub.common.mybatis.MybatisPlusAutoConfiguration

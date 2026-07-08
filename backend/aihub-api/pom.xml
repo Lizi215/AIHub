@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.aihub</groupId>
+        <artifactId>aihub</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>aihub-api</artifactId>
+    <name>aihub-api</name>
+    <description>服务间契约：Feign 接口 + 服务间 DTO。禁止放置实体类、Mapper 与业务实现。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.aihub</groupId>
+            <artifactId>aihub-common</artifactId>
+        </dependency>
+
+        <!--
+          optional=true：锚定 @FeignClient 与 traceId 透传拦截器的编译期依赖。
+          提供方（被调用服务）不需要 Feign，因此不会被动引入；调用方自行声明 starter。
+        -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+          服务间 DTO 就是 JSON 契约，需要 Jackson 注解（如 @JsonSerialize 覆盖全局 Long→String 规则）。
+          spring-web 不传递 jackson-databind，所以这里显式声明；版本由 Boot 管理。
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+    </dependencies>
+</project>
