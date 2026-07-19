@@ -1,0 +1,72 @@
+server:
+  port: ${USER_PORT:8081}
+
+spring:
+  application:
+    name: aihub-user
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # serverTimezone 必须显式指定：数据库与服务器时区保持一致，禁止依赖 JVM 默认时区
+    url: "jdbc:mysql://${DATABASE_HOST:127.0.0.1}:${DATABASE_PORT:3306}/${DATABASE_NAME:aihub}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+    username: ${DATABASE_USERNAME:root}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 5000
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+    openfeign:
+      client:
+        config:
+          default:
+            # 显式配置超时，禁止使用默认值（docs/BACKEND.md §3）；实际取值由 Apollo 下发
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT:3000}
+            read-timeout: ${FEIGN_READ_TIMEOUT:5000}
+
+mybatis-plus:
+  # BACKEND.md §4 要求显式指定，漏配会导致 Mapper XML 静默失效
+  mapper-locations: classpath*:mapper/**/*.xml
+  global-config:
+    banner: false
+
+# RocketMQ：下载记录消费（DownloadConsumer → download_record）
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
+
+aihub:
+  jwt:
+    # 密钥必须由环境变量或 Apollo 提供，缺失则启动失败（禁止默认密钥）
+    secret: ${JWT_SECRET:}
+    issuer: ${JWT_ISSUER:aihub}
+    access-token-ttl: ${JWT_ACCESS_TTL:30m}
+    refresh-token-ttl: ${JWT_REFRESH_TTL:7d}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+apollo:
+  bootstrap:
+    enabled: ${APOLLO_ENABLED:true}
+    namespaces: application
+  meta: ${APOLLO_META:http://127.0.0.1:8090}
+
+app:
+  id: aihub-user

@@ -1,0 +1,42 @@
+server:
+  port: ${FILE_PORT:8083}
+
+spring:
+  application:
+    name: aihub-file
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+
+aihub:
+  jwt:
+    # 密钥必须由环境变量或 Apollo 提供，缺失则启动失败（禁止默认密钥）
+    secret: ${JWT_SECRET:}
+    issuer: ${JWT_ISSUER:aihub}
+    access-token-ttl: ${JWT_ACCESS_TTL:30m}
+    refresh-token-ttl: ${JWT_REFRESH_TTL:7d}
+  file:
+    minio:
+      endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
+      access-key: ${MINIO_ACCESS_KEY:${MINIO_ROOT_USER:aihub}}
+      secret-key: ${MINIO_SECRET_KEY:${MINIO_ROOT_PASSWORD:}}
+      bucket: ${MINIO_BUCKET:aihub}
+      max-size-bytes: ${MINIO_MAX_SIZE_BYTES:52428800}
+      allowed-extensions: ${MINIO_ALLOWED_EXTENSIONS:zip}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+apollo:
+  bootstrap:
+    enabled: ${APOLLO_ENABLED:true}
+    namespaces: application
+  meta: ${APOLLO_META:http://127.0.0.1:8090}
+
+app:
+  id: aihub-file
