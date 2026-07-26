@@ -1,0 +1,109 @@
+server:
+  port: ${ASSET_PORT:8082}
+
+spring:
+  application:
+    name: aihub-asset
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: "jdbc:mysql://${DATABASE_HOST:127.0.0.1}:${DATABASE_PORT:3306}/${DATABASE_NAME:aihub}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+    username: ${DATABASE_USERNAME:root}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 5000
+  data:
+    redis:
+      # Phase 4 的热门榜 ZSet / 浏览量 Hash / 下载防刷量去重都依赖 Redis。
+      # 这一节曾经漏配：服务会默默去连 localhost:6379（本机 Redis 在 VM 上），
+      # 表现为 /actuator/health 的 redis 组件 DOWN、统计功能静默失效。
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+  servlet:
+    multipart:
+      # 与 aihub.asset.max-upload-size-bytes 保持一致；超出时由容器直接拒绝，不必进到业务层
+      max-file-size: ${ASSET_MAX_UPLOAD_SIZE:50MB}
+      max-request-size: ${ASSET_MAX_REQUEST_SIZE:50MB}
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+    sentinel:
+      # 尽早初始化：不依赖 Dashboard 也能生效（本机无 Dashboard）
+      eager: ${SENTINEL_EAGER:true}
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:}
+      # 规则持久化：写在 Nacos 配置中心，重启不丢
+      datasource:
+        flow-rules:
+          nacos:
+            server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+            data-id: ${SENTINEL_FLOW_DATA_ID:aihub-asset-flow-rules}
+            group-id: ${SENTINEL_GROUP:SENTINEL_GROUP}
+            rule-type: flow
+            data-type: json
+    openfeign:
+      client:
+        config:
+          default:
+            # 上传/下载走中转，读超时需要比普通接口更宽松
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT:3000}
+            read-timeout: ${FEIGN_READ_TIMEOUT:30000}
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  global-config:
+    banner: false
+
+# RocketMQ：出站事件（outbox 中继 + 提交后立即投递）
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:aihub-asset-producer}
+    # 发送重试与超时按 docs/MESSAGING.md §3：重试 2 次、超时 3000ms
+    retry-times-when-send-failed: 2
+    send-message-timeout: 3000
+
+aihub:
+  jwt:
+    secret: ${JWT_SECRET:}
+    issuer: ${JWT_ISSUER:aihub}
+    access-token-ttl: ${JWT_ACCESS_TTL:30m}
+    refresh-token-ttl: ${JWT_REFRESH_TTL:7d}
+  asset:
+    # 中转模式下载/上传会把文件字节驻留堆内存，必须设上限
+    max-upload-size-bytes: ${ASSET_MAX_UPLOAD_BYTES:52428800}
+    outbox:
+      # 开启后：业务提交时立即投递事件，失败由定时中继重投（docs/SEARCH.md §1）。
+      # 需要 RocketMQ 可用——producer 启动时会连 name server，连不上会启动失败（刻意 fail fast，
+      # 避免"以为在发事件其实一条没发"）。没有 MQ 的环境请显式置 false。
+      enabled: ${OUTBOX_RELAY_ENABLED:true}
+      batch-size: ${OUTBOX_BATCH_SIZE:100}
+      max-retry-count: ${OUTBOX_MAX_RETRY:5}
+      base-backoff: ${OUTBOX_BASE_BACKOFF:10s}
+      max-backoff: ${OUTBOX_MAX_BACKOFF:10m}
+      poll-interval: ${OUTBOX_POLL_INTERVAL:5s}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+apollo:
+  bootstrap:
+    enabled: ${APOLLO_ENABLED:true}
+    namespaces: application
+  meta: ${APOLLO_META:http://127.0.0.1:8090}
+
+app:
+  id: aihub-asset
