@@ -1,0 +1,86 @@
+server:
+  port: ${SEARCH_PORT:8086}
+
+spring:
+  application:
+    name: aihub-search
+  # 注意：本服务**没有数据源**——它不持有业务表，业务数据一律经 Feign 取（docs/SEARCH.md §1）
+  data:
+    redis:
+      # 消费幂等（IdempotencyGuard）依赖 Redis
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+    openfeign:
+      client:
+        config:
+          default:
+            # 对账任务会分页扫描业务数据，读超时要宽松些（docs/BACKEND.md §3 要求显式配置）
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT:3000}
+            read-timeout: ${FEIGN_READ_TIMEOUT:30000}
+
+# RocketMQ：消费索引事件（docs/MESSAGING.md）
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
+  consumer:
+    # 消费线程数：索引写入是 IO 等待为主，默认值起步
+    pull-batch-size: 32
+  producer:
+    # 本服务目前只做消费者；保留生产者配置以便后续需要（如索引失败上报）
+    group: ${ROCKETMQ_PRODUCER_GROUP:aihub-search-producer}
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 2
+
+aihub:
+  jwt:
+    secret: ${JWT_SECRET:}
+    issuer: ${JWT_ISSUER:aihub}
+    access-token-ttl: ${JWT_ACCESS_TTL:30m}
+    refresh-token-ttl: ${JWT_REFRESH_TTL:7d}
+  event:
+    # 幂等 Key TTL 必须长于消息重试窗口（docs/MESSAGING.md §3 规定 24h）
+    idempotency-ttl: ${EVENT_IDEMPOTENCY_TTL:24h}
+  search:
+    elasticsearch:
+      uris: ${ES_URIS:http://127.0.0.1:9200}
+      connect-timeout: ${ES_CONNECT_TIMEOUT:3s}
+      socket-timeout: ${ES_SOCKET_TIMEOUT:10s}
+      # 启动即建索引：ES 连不上时直接启动失败，避免"服务起来了但搜索全 500"
+      bootstrap-enabled: ${ES_BOOTSTRAP_ENABLED:true}
+      # 本地演示/验收用 wait_for（写完即可搜到）；生产应改 false
+      wait-for-refresh: ${ES_WAIT_FOR_REFRESH:true}
+    reconcile:
+      # 定时对账：补齐"事件没到"造成的索引缺口（docs/SEARCH.md §1）
+      enabled: ${RECONCILE_ENABLED:true}
+      # 增量回看窗口：宁可重复扫描（幂等），不可漏扫
+      lookback: ${RECONCILE_LOOKBACK:24h}
+      # 启动后首次对账延迟（等业务服务注册完成）与后续间隔
+      initial-delay: ${RECONCILE_INITIAL_DELAY:5m}
+      interval: ${RECONCILE_INTERVAL:1h}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+apollo:
+  bootstrap:
+    enabled: ${APOLLO_ENABLED:true}
+    namespaces: application
+  meta: ${APOLLO_META:http://127.0.0.1:8090}
+
+app:
+  id: aihub-search
