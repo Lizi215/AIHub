@@ -1,0 +1,75 @@
+server:
+  port: ${COMMUNITY_PORT:8084}
+
+spring:
+  application:
+    name: aihub-community
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: "jdbc:mysql://${DATABASE_HOST:127.0.0.1}:${DATABASE_PORT:3306}/${DATABASE_NAME:aihub}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+    username: ${DATABASE_USERNAME:root}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 5000
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  global-config:
+    banner: false
+
+# RocketMQ：出站事件（PostCreatedEvent）
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:aihub-community-producer}
+    # 与 Asset 侧一致：重试 2 次、超时 3000ms（docs/MESSAGING.md §3）
+    retry-times-when-send-failed: 2
+    send-message-timeout: 3000
+
+aihub:
+  jwt:
+    secret: ${JWT_SECRET:}
+    issuer: ${JWT_ISSUER:aihub}
+    access-token-ttl: ${JWT_ACCESS_TTL:30m}
+    refresh-token-ttl: ${JWT_REFRESH_TTL:7d}
+  community:
+    outbox:
+      # 开启后：发帖时立即投递事件，由 Asset 侧的中继兜底重投（两侧共用 event_outbox 表）
+      enabled: ${COMMUNITY_OUTBOX_ENABLED:true}
+    like:
+      # 点赞去重集合的 TTL。MySQL 的 uk_post_like 才是硬保证，
+      # 这里的集合只是快路径与缓存，即使过期也不会造成重复计数
+      dedup-ttl: ${LIKE_DEDUP_TTL:30d}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+apollo:
+  bootstrap:
+    enabled: ${APOLLO_ENABLED:true}
+    namespaces: application
+  meta: ${APOLLO_META:http://127.0.0.1:8090}
+
+app:
+  id: aihub-community
