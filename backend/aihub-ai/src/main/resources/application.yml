@@ -1,0 +1,111 @@
+server:
+  port: ${AI_PORT:8085}
+
+spring:
+  application:
+    name: aihub-ai
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: "jdbc:mysql://${DATABASE_HOST:127.0.0.1}:${DATABASE_PORT:3306}/${DATABASE_NAME:aihub}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+    username: ${DATABASE_USERNAME:root}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 5000
+  data:
+    redis:
+      # 仅用于多轮会话历史缓存（List + TTL 2h，不持久化）；Redis 不可用时历史降级为空，不影响任务
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_ENABLED:true}
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+    openfeign:
+      client:
+        config:
+          default:
+            # Tool 调用下游必须显式配置超时（docs/BACKEND.md §3），且要短于
+            # aihub.agent.tool-timeout，否则外层守卫永远先于网络层触发，看不出真实原因
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT:2000}
+            read-timeout: ${FEIGN_READ_TIMEOUT:4000}
+  ai:
+    # Spring AI 的自动装配全部关掉：本项目自己构造 ChatModel（见 AiChatClientFactory），
+    # 否则缺 api-key 时会在启动阶段直接失败，"无 Key 可运行"就不成立了。
+    model:
+      chat: none
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+    mcp:
+      client:
+        # 默认关闭：本机没有任何 MCP Server 可连。
+        # 需要接入时置 true 并配置 spring.ai.mcp.client.stdio/sse 下的 server。
+        enabled: ${MCP_CLIENT_ENABLED:false}
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  global-config:
+    banner: false
+
+aihub:
+  jwt:
+    secret: ${JWT_SECRET:}
+    issuer: ${JWT_ISSUER:aihub}
+    access-token-ttl: ${JWT_ACCESS_TTL:30m}
+    refresh-token-ttl: ${JWT_REFRESH_TTL:7d}
+  agent:
+    # AUTO：有 api-key 用真实模型，没有就 mock。
+    # 当前部署指向阿里百炼（qwen3.7-flash）：DashScope 的 OpenAI 兼容端点是
+    # base-url（含 /compatible-mode 段）+ /v1/chat/completions。
+    # 换其他服务时用 AGENT_* 环境变量覆盖（智谱 GLM 是 /v4 路径，见 git 历史）。
+    mode: ${AGENT_MODE:AUTO}
+    base-url: ${AGENT_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
+    completions-path: ${AGENT_COMPLETIONS_PATH:/v1/chat/completions}
+    # Key 回退链：AGENT_API_KEY（通用）→ QWEN_3.7_FLASH_API → GLM_4.7_FLASH_API（本机 IDEA 里的名字）
+    api-key: ${AGENT_API_KEY:${QWEN_3.7_FLASH_API:${GLM_4.7_FLASH_API:}}}
+    model: ${AGENT_MODEL:qwen3.7-flash}
+    # 思考模式默认关（Qwen3 默认开，单轮规划实测 45~190s）；需要推理深度时设 true 对比
+    thinking-enabled: ${AGENT_THINKING_ENABLED:false}
+    temperature: ${AGENT_TEMPERATURE:0.2}
+    # 防护约束（docs/AGENT.md §7）：步数 / 超时 / Token 都必须是有限值
+    max-steps: ${AGENT_MAX_STEPS:16}
+    # 真实模型每轮规划调用约 15~20s，多轮 + 纠正重试会超过 60s（实测 qwen3.7-flash 触顶）；
+    # mock 模式毫秒级不受影响。仍是有限值，护栏语义不变（docs/AGENT.md §7）
+    task-timeout: ${AGENT_TASK_TIMEOUT:120s}
+    tool-timeout: ${AGENT_TOOL_TIMEOUT:5s}
+    # 规划器每轮调用都是全新请求（无状态），system + 工具清单 + 观察结果 + 会话历史
+    # 全量重发，多轮任务累计很快；多轮会话上线后 20000 实测不够（一轮 4~6k）。
+    # 仍必须有界（docs/AGENT.md §7），只是阈值随上下文变大而上调
+    max-tokens: ${AGENT_MAX_TOKENS:30000}
+    # 不可信内容（README / 帖子正文）进入上下文前的截断上限
+    max-untrusted-chars: ${AGENT_MAX_UNTRUSTED_CHARS:1500}
+    executor-threads: ${AGENT_EXECUTOR_THREADS:4}
+    executor-queue-capacity: ${AGENT_EXECUTOR_QUEUE:50}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+apollo:
+  bootstrap:
+    enabled: ${APOLLO_ENABLED:true}
+    namespaces: application
+  meta: ${APOLLO_META:http://127.0.0.1:8090}
+
+app:
+  id: aihub-ai
