@@ -1,0 +1,59 @@
+# ---------- Java / Maven ----------
+target/
+*.class
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+
+# ---------- 前端 ----------
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- IDE ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+
+# ---------- 密钥与本地配置（禁止提交，docs/SECURITY.md §1）----------
+.env
+.env.local
+*.env
+!.env.example
+*.pem
+*.key
+*.p12
+
+# ---------- 运行期产物 ----------
+logs/
+*.log
+*.pid
+
+# ---------- 本地端到端验证脚本（含 CDP 临时 profile，不入库）----------
+.tmp-verify/
+
+# ---------- 前端测试产物（Vitest / Playwright，P4）----------
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
+coverage/
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+.codebuddy/
+
+
+.chatcode/
