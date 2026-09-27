@@ -22,7 +22,7 @@ import {
   listIssueComments,
   listIssuesByAsset
 } from '@/api/issue'
-import { listAssetTags, listTags, setAssetTags } from '@/api/tag'
+import { listAssetTags, setAssetTags } from '@/api/tag'
 import { useUserStore } from '@/stores/user'
 import { saveBlob } from '@/utils/download'
 import { formatDateTime } from '@/utils/format'
@@ -120,7 +120,7 @@ function resetState() {
   downloadingVersion.value = ''
   downloadingReadme.value = ''
   assetTags.value = []
-  tagDraft.value = []
+  tagDraft.value = ''
   Object.keys(commentsByIssue).forEach((k) => delete commentsByIssue[k])
   Object.keys(commentDraft).forEach((k) => delete commentDraft[k])
   Object.assign(uploadForm, { file: null, version: '', changelog: '', readme: '' })
@@ -156,34 +156,39 @@ async function load(id) {
 
 /** 资源当前标签（公开读，访客也能看） */
 const assetTags = ref([])
-/** 标签字典（下拉选项） */
-const tagOptions = ref([])
-/** 归属者的编辑草稿 */
-const tagDraft = ref([])
+/** 归属者的编辑草稿：逗号分隔的文本，手输即可，不拉全量字典 */
+const tagDraft = ref('')
 const savingTags = ref(false)
 
+/** 把草稿文本切成标签数组：逗号（中英文）/顿号/空格分隔，去掉空白项 */
+function parseTags(text) {
+  return [
+    ...new Set(
+      String(text ?? '')
+        .split(/[,，、\s]+/)
+        .map((t) => t.trim())
+        .filter(Boolean)
+    )
+  ]
+}
+
 const tagsDirty = computed(() => {
-  const a = [...tagDraft.value].map((t) => t.trim()).filter(Boolean).sort()
-  const b = [...assetTags.value].sort()
+  const a = parseTags(tagDraft.value).map((t) => t.toLowerCase()).sort()
+  const b = [...assetTags.value].map((t) => t.toLowerCase()).sort()
   return a.length !== b.length || a.some((t, i) => t !== b[i])
 })
 
 async function loadTags(id) {
-  // 两个请求各自兜底：字典挂了只影响下拉选项，标签展示不受影响
-  const [current, dictionary] = await Promise.all([
-    listAssetTags(id).catch(() => []),
-    listTags().catch(() => [])
-  ])
-  assetTags.value = current || []
-  tagDraft.value = [...assetTags.value]
-  tagOptions.value = dictionary || []
+  // 标签展示失败不影响其他 Tab，兜底成空
+  assetTags.value = (await listAssetTags(id).catch(() => [])) || []
+  tagDraft.value = assetTags.value.join(', ')
 }
 
 /**
  * 保存标签。后端清洗后整组替换，字典里没有的名字会自动注册，不需要先单独建标签。
  */
 async function saveTags() {
-  const tags = [...new Set(tagDraft.value.map((t) => t.trim()).filter(Boolean))]
+  const tags = parseTags(tagDraft.value)
   // 与后端 TagServiceImpl 的约束一致（进 ES keyword 字段，超长会被拒）
   if (tags.some((t) => t.length > 20)) {
     ElMessage.warning('单个标签最多 20 个字符')
@@ -195,11 +200,10 @@ async function saveTags() {
   }
   savingTags.value = true
   try {
+    // 后端回显的是字典里的规范写法，直接采用
     const saved = await setAssetTags(props.assetId, tags)
     assetTags.value = saved || tags
-    tagDraft.value = [...assetTags.value]
-    // 新名字可能进了字典，刷新下拉选项
-    tagOptions.value = await listTags().catch(() => tagOptions.value)
+    tagDraft.value = assetTags.value.join(', ')
     ElMessage.success('标签已更新')
     // ES 的 tags 字段是异步同步的，列表/搜索页要跟着刷新
     emit('changed')
@@ -523,18 +527,12 @@ async function changeStatus(issueId, status) {
         <p class="detail__label">标签</p>
         <div class="detail__tagBlock">
           <template v-if="isOwner">
-            <el-select
+            <!-- 手输标签，不拉全量字典：标签越攒越多，下拉既占资源又难找 -->
+            <el-input
               v-model="tagDraft"
-              multiple
-              filterable
-              allow-create
-              default-first-option
-              :reserve-keyword="false"
-              class="detail__tagSelect"
-              placeholder="从字典选择，或直接输入新标签"
-            >
-              <el-option v-for="t in tagOptions" :key="t.id" :label="t.name" :value="t.name" />
-            </el-select>
+              class="detail__tagInput"
+              placeholder="输入标签，用逗号分隔，如 MCP, 工具"
+            />
             <el-button
               type="primary"
               size="small"
@@ -544,7 +542,7 @@ async function changeStatus(issueId, status) {
             >
               保存标签
             </el-button>
-            <span class="detail__hint">最多 10 个，单个 ≤20 字符；保存后约数秒同步到搜索</span>
+            <span class="detail__hint">最多 10 个，单个 ≤20 字符，逗号分隔；保存后约数秒同步到搜索</span>
           </template>
           <template v-else>
             <el-tag v-for="t in assetTags" :key="t" size="small" type="info" class="detail__tagItem">
@@ -867,7 +865,7 @@ async function changeStatus(issueId, status) {
   gap: 8px;
 }
 
-.detail__tagSelect {
+.detail__tagInput {
   width: 320px;
 }
 

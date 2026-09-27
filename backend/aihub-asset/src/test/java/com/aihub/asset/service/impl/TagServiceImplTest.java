@@ -117,6 +117,22 @@ class TagServiceImplTest {
     }
 
     @Test
+    @DisplayName("大小写不敏感：MCP/Mcp/mcp 视为同一标签，回显字典里的规范写法")
+    void shouldDedupeCaseInsensitively() {
+        TagEntity existing = new TagEntity();
+        existing.setId(9L);
+        existing.setName("MCP");
+        when(tagMapper.selectOne(any(Wrapper.class))).thenReturn(existing);
+
+        List<String> saved = service.setAssetTags(ASSET_ID, List.of("mcp", "Mcp", "MCP"), OWNER_ID);
+
+        // 三个变体归并为一个；复用既有字典记录，不新建；只建一条关联
+        verify(tagMapper, org.mockito.Mockito.never()).insert(any(TagEntity.class));
+        verify(assetTagMapper, org.mockito.Mockito.times(1)).insert(any(AssetTagEntity.class));
+        assertThat(saved).containsExactly("MCP");
+    }
+
+    @Test
     @DisplayName("超过 10 个标签被拒绝")
     void shouldRejectTooManyTags() {
         List<String> tooMany = java.util.stream.IntStream.rangeClosed(1, 11)

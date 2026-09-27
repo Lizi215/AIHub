@@ -129,7 +129,6 @@ class AuthGlobalFilterTest {
                 Arguments.of(HttpMethod.GET, "/api/v1/posts/1/comments"),
                 Arguments.of(HttpMethod.GET, "/api/v1/search/assets"),
                 Arguments.of(HttpMethod.GET, "/api/v1/search/assets/suggest"),
-                Arguments.of(HttpMethod.GET, "/api/v1/tags"),
                 Arguments.of(HttpMethod.GET, "/api/v1/assets/1/tags"),
                 // 热门榜是公开可读的榜单（Phase 4）
                 Arguments.of(HttpMethod.GET, "/api/v1/assets/hot"),
@@ -167,7 +166,6 @@ class AuthGlobalFilterTest {
                 Arguments.of(HttpMethod.POST, "/api/v1/assets/1/versions"),
                 Arguments.of(HttpMethod.DELETE, "/api/v1/assets/1/versions/1.0.0"),
                 Arguments.of(HttpMethod.POST, "/api/v1/assets/1/dependencies"),
-                Arguments.of(HttpMethod.POST, "/api/v1/tags"),
                 Arguments.of(HttpMethod.POST, "/api/v1/posts"),
                 Arguments.of(HttpMethod.POST, "/api/v1/issues"),
                 Arguments.of(HttpMethod.GET, "/api/v1/users/me"),

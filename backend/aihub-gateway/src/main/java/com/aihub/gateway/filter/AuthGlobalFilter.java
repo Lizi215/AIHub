@@ -66,8 +66,7 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             new PublicRule(HttpMethod.GET, "/api/v1/posts/*/comments"),
             // 搜索公开可读：Visitor 也能检索公开资源与社区内容
             new PublicRule(HttpMethod.GET, "/api/v1/search/**"),
-            // 标签字典与资源的标签公开可读
-            new PublicRule(HttpMethod.GET, "/api/v1/tags"),
+            // 资源的标签公开可读（标签字典接口已移除，标签改为手输）
             new PublicRule(HttpMethod.GET, "/api/v1/assets/*/tags"));
 
     /**

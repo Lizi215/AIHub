@@ -1,9 +1,8 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { searchAssets } from '@/api/search'
 import { downloadAsset } from '@/api/asset'
-import { listTags } from '@/api/tag'
 import { saveBlob } from '@/utils/download'
 import AssetDetailDialog from '@/components/AssetDetailDialog.vue'
 
@@ -24,12 +23,6 @@ const searched = ref(false)
 const cursor = ref(null)
 const detailVisible = ref(false)
 const detailAssetId = ref(null)
-const tags = ref([])
-
-onMounted(async () => {
-  // 标签字典失败不影响搜索本身，静默降级为「没有标签筛选」
-  tags.value = await listTags().catch(() => [])
-})
 
 /**
  * 高亮片段来自 ES（<em> 包裹命中词），而正文是用户上传的纯文本——
@@ -115,12 +108,9 @@ function authorNameOf(hit) {
   return id ? `用户#${String(id).slice(-6)}` : '匿名'
 }
 
-/** 详情弹窗里改了资源（含标签）：结果要刷新，标签字典下拉也要刷新 */
+/** 详情弹窗里改了资源（含标签）：结果要刷新 */
 function onDetailChanged() {
   search(true)
-  listTags()
-    .then((t) => (tags.value = t))
-    .catch(() => {})
 }
 
 function loadMore() {
@@ -165,17 +155,14 @@ async function handleDownload(hit) {
         </el-select>
       </el-form-item>
       <el-form-item>
-        <!-- 标签对"找资源"很关键（同一类能力可能跨分类），所以给独立入口 -->
-        <el-select
+        <!-- 手输标签，不拉全量字典：标签会越攒越多，下拉既占资源又难找 -->
+        <el-input
           v-model="query.tag"
           placeholder="标签"
           clearable
-          filterable
           style="width: 160px"
-          :disabled="!tags.length"
-        >
-          <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.name" />
-        </el-select>
+          @keyup.enter="onSearch"
+        />
       </el-form-item>
       <el-form-item>
         <el-select v-model="query.sort" style="width: 120px">

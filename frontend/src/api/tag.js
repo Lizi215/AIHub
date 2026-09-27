@@ -1,10 +1,5 @@
 import request from '@/utils/request'
 
-/** 标签字典（供筛选下拉使用，按名称排序）。 */
-export function listTags() {
-  return request.get('/tags')
-}
-
 /** 某个资源的标签（公开读）。 */
 export function listAssetTags(id) {
   return request.get(`/assets/${id}/tags`)

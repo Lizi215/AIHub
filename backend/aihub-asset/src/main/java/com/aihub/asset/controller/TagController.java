@@ -1,7 +1,6 @@
 package com.aihub.asset.controller;
 
 import com.aihub.asset.service.TagService;
-import com.aihub.asset.vo.TagVo;
 import com.aihub.common.auth.RequireLogin;
 import com.aihub.common.result.Result;
 import com.aihub.common.trace.UserContext;
@@ -21,8 +20,6 @@ import java.util.List;
  * 标签接口（docs/ARCHITECTURE.md §3：Tag 只服务 Asset）。
  *
  * <pre>
- * GET /api/v1/tags              字典列表（公开读）
- * POST /api/v1/tags             创建标签（登录）
  * GET  /api/v1/assets/{id}/tags 资源的标签（公开读）
  * PUT  /api/v1/assets/{id}/tags 整体设置资源标签（owner，校验在 service 层）
  * </pre>
@@ -39,11 +36,6 @@ public class TagController {
     public record SetTagsRequest(
             @Valid List<@Valid @NotBlank @Size(max = 20) String> tags
     ) {
-    }
-
-    @GetMapping("/api/v1/tags")
-    public Result<List<TagVo>> list() {
-        return Result.ok(tagService.list());
     }
 
     @GetMapping("/api/v1/assets/{id}/tags")

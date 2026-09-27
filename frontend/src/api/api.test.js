@@ -10,7 +10,7 @@ import request from '@/utils/request'
 import { listAssets, lookupOwnAssetByName, getAssetDetail, createAsset, uploadAssetVersion, publishAsset, updateAsset, deleteAsset, deleteAssetVersion, batchDeleteAssetVersions, downloadAsset, downloadAssetVersion, downloadAssetVersionReadme, listAssetVersions, listAssetDependencies, getDependencyTree } from './asset'
 import { register, login, logout, refreshToken, getCurrentUser } from './auth'
 import { searchAssets } from './search'
-import { listTags, listAssetTags, setAssetTags } from './tag'
+import { listAssetTags, setAssetTags } from './tag'
 import { createAgentTask, getAgentTask, confirmAgentTask, cancelAgentTask } from './agent'
 import { createWorkspace, listWorkspaces, getWorkspace, deleteWorkspace } from './workspace'
 import { listIssuesByAsset, createIssue, changeIssueStatus, createIssueComment, listIssueComments } from './issue'
@@ -94,9 +94,6 @@ describe('api 契约', () => {
   it('搜索与标签接口路径', () => {
     searchAssets({ keyword: 'k' })
     expect(request.get).toHaveBeenCalledWith('/search/assets', { params: { keyword: 'k' } })
-
-    listTags()
-    expect(request.get).toHaveBeenCalledWith('/tags')
 
     listAssetTags('123')
     expect(request.get).toHaveBeenCalledWith('/assets/123/tags')

@@ -27,7 +27,7 @@ spring:
         - id: aihub-asset
           uri: lb://aihub-asset
           predicates:
-            - Path=/api/v1/assets,/api/v1/assets/**,/api/v1/tags
+            - Path=/api/v1/assets,/api/v1/assets/**
         - id: aihub-community
           uri: lb://aihub-community
           predicates:

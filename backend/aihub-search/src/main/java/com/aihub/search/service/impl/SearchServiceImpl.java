@@ -70,7 +70,8 @@ public class SearchServiceImpl implements SearchService {
             filters.add(new Term("category", category));
         }
         if (tag != null && !tag.isBlank()) {
-            filters.add(new Term("tags", tag));
+            // 标签是自由输入（手输），大小写不敏感匹配：搜 "mcp" 也要命中 "MCP"
+            filters.add(new Term("tags", tag, true));
         }
         // 作者过滤：authorId 是 keyword 字段，term 精确匹配
         if (ownerId != null) {
@@ -234,7 +235,8 @@ public class SearchServiceImpl implements SearchService {
                     .type(TextQueryType.BestFields))));
         }
         for (Term filter : filters) {
-            bool.filter(Query.of(q -> q.term(t -> t.field(filter.field()).value(filter.value()))));
+            bool.filter(Query.of(q -> q.term(t -> t.field(filter.field()).value(filter.value())
+                    .caseInsensitive(filter.caseInsensitive()))));
         }
         return Query.of(q -> q.bool(bool.build()));
     }
@@ -250,7 +252,10 @@ public class SearchServiceImpl implements SearchService {
         return size;
     }
 
-    /** 等值筛选条件 */
-    private record Term(String field, String value) {
+    /** 等值筛选条件。{@code caseInsensitive} 只给自由输入的 tag 用，枚举类字段保持精确匹配。 */
+    private record Term(String field, String value, boolean caseInsensitive) {
+        Term(String field, String value) {
+            this(field, value, false);
+        }
     }
 }

@@ -1,7 +1,5 @@
 package com.aihub.asset.service;
 
-import com.aihub.asset.vo.TagVo;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -15,9 +13,6 @@ public interface TagService {
      * 创建标签（幂等：同名已存在时返回既有 id，避免"查到没有再创建"的并发重复）。
      */
     Long create(String name);
-
-    /** 全部标签（字典量小，不分页）。 */
-    List<TagVo> list();
 
     /**
      * 整体设置资源的标签（owner only）：

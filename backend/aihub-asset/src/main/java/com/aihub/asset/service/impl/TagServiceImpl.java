@@ -12,7 +12,6 @@ import com.aihub.asset.mapper.TagMapper;
 import com.aihub.asset.service.AssetAccessGuard;
 import com.aihub.asset.service.OutboxEventService;
 import com.aihub.asset.service.TagService;
-import com.aihub.asset.vo.TagVo;
 import com.aihub.common.exception.BizException;
 import com.aihub.common.mybatis.BaseEntity;
 import com.aihub.common.result.ErrorCode;
@@ -24,6 +23,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -36,6 +36,10 @@ import java.util.stream.Collectors;
  *
  * <p>标签名会进 ES 的 tags keyword 字段，超长会被 ES 拒绝，因此写入前统一去空白、去重、
  * 限长限数（≤10 个、每个 ≤20 字符）。
+ *
+ * <p>大小写不敏感：字典表排序规则为 {@code utf8mb4_general_ci}，"MCP" 与 "mcp" 是同一个标签，
+ * 唯一索引也按此判定。因此服务层的去重键统一取小写，否则同一次提交里的 "MCP"/"mcp"
+ * 会绕过 Java 侧去重、生成两条指向同一 tagId 的关联。展示沿用字典里已存的写法。
  */
 @Service
 public class TagServiceImpl implements TagService {
@@ -64,10 +68,17 @@ public class TagServiceImpl implements TagService {
     @Override
     @Transactional
     public Long create(String name) {
-        String cleaned = cleanName(name);
+        return findOrCreate(cleanName(name)).getId();
+    }
+
+    /**
+     * 按名取标签，不存在则建。返回既有记录时其 {@code name} 就是字典里的规范写法，
+     * 调用方据此回显，避免把用户输入的 "mcp" 直接当成展示名。
+     */
+    private TagEntity findOrCreate(String cleaned) {
         TagEntity existing = findByName(cleaned);
         if (existing != null) {
-            return existing.getId();
+            return existing;
         }
         TagEntity tag = new TagEntity();
         tag.setName(cleaned);
@@ -80,19 +91,9 @@ public class TagServiceImpl implements TagService {
             if (winner == null) {
                 throw e;
             }
-            return winner.getId();
+            return winner;
         }
-        return tag.getId();
-    }
-
-    @Override
-    public List<TagVo> list() {
-        return tagMapper.selectList(new LambdaQueryWrapper<TagEntity>()
-                .eq(TagEntity::getDeleted, BaseEntity.NOT_DELETED)
-                .orderByAsc(TagEntity::getName))
-                .stream()
-                .map(t -> new TagVo(t.getId(), t.getName()))
-                .toList();
+        return tag;
     }
 
     @Override
@@ -124,19 +125,19 @@ public class TagServiceImpl implements TagService {
         // owner only：标签是资源内容的一部分（docs/ARCHITECTURE.md §9.2 走归属）
         AssetEntity asset = accessGuard.requireOwned(assetId, ownerId);
 
-        // 清洗：去空白、去重、限长限数——这些名字会进 ES keyword 字段，超长会被 ES 拒绝
-        Map<String, Boolean> cleaned = new LinkedHashMap<>();
+        // 清洗：去空白、去重、限长限数——这些名字会进 ES keyword 字段，超长会被 ES 拒绝。
+        // 去重键取小写：字典排序规则是 ci，"MCP" 与 "mcp" 是同一标签，用小写键才不会重复关联。
+        Map<String, String> cleaned = new LinkedHashMap<>();
         for (String name : names == null ? List.<String>of() : names) {
             String trimmed = (name == null ? "" : name.strip());
             if (trimmed.isEmpty()) {
                 continue;
             }
-            if (trimmed.isEmpty()) { /* strip 后为空则跳过 */ }
             if (trimmed.length() > MAX_NAME_LENGTH) {
                 throw new BizException(ErrorCode.PARAM_INVALID,
                         "tag must be at most " + MAX_NAME_LENGTH + " characters: " + trimmed);
             }
-            cleaned.putIfAbsent(trimmed, Boolean.TRUE);
+            cleaned.putIfAbsent(trimmed.toLowerCase(Locale.ROOT), trimmed);
         }
         if (cleaned.size() > MAX_TAGS_PER_ASSET) {
             throw new BizException(ErrorCode.PARAM_INVALID,
@@ -150,12 +151,14 @@ public class TagServiceImpl implements TagService {
                 .eq(AssetTagEntity::getAssetId, assetId)
                 .eq(AssetTagEntity::getDeleted, BaseEntity.NOT_DELETED));
 
-        List<String> result = new ArrayList<>(cleaned.keySet());
-        for (String name : cleaned.keySet()) {
-            Long tagId = create(name);
+        List<String> result = new ArrayList<>();
+        for (String name : cleaned.values()) {
+            TagEntity tag = findOrCreate(name);
+            // 回显字典里的规范写法：用户输 "mcp"、字典里是 "MCP" 时，返回的应是 "MCP"
+            result.add(tag.getName());
             AssetTagEntity relation = new AssetTagEntity();
             relation.setAssetId(assetId);
-            relation.setTagId(tagId);
+            relation.setTagId(tag.getId());
             relation.setDeleted(BaseEntity.NOT_DELETED);
             assetTagMapper.insert(relation);
         }
